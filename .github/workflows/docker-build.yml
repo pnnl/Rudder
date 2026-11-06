@@ -4,6 +4,18 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      type:
+        description: Build type
+        type: choice
+        options:
+          - cpu
+          - cuda121
+        default: cpu
+
+env:
+  BUILD_TYPE: ${{ inputs.type || 'cpu' }}
+  TAG_SUFFIX: ${{ inputs.type == 'cuda121' && '-cuda121' || '' }}
 
 permissions:
   contents: read
@@ -32,6 +44,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
+          flavor: |
+            suffix=${{ env.TAG_SUFFIX }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -42,6 +56,8 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile
+          build-args: |
+            TYPE=${{ env.BUILD_TYPE }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
