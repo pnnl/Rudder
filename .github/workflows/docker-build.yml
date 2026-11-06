@@ -4,18 +4,6 @@ on:
   push:
   pull_request:
   workflow_dispatch:
-    inputs:
-      type:
-        description: Build type
-        type: choice
-        options:
-          - cpu
-          - cuda121
-        default: cpu
-
-env:
-  BUILD_TYPE: ${{ inputs.type || 'cpu' }}
-  TAG_SUFFIX: ${{ inputs.type == 'cuda121' && '-cuda121' || '' }}
 
 permissions:
   contents: read
@@ -24,6 +12,14 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - type: cpu
+            suffix: ""
+          - type: cuda121
+            suffix: "-cuda121"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,7 +41,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           flavor: |
-            suffix=${{ env.TAG_SUFFIX }}
+            suffix=${{ matrix.suffix }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -57,7 +53,7 @@ jobs:
           context: .
           file: docker/Dockerfile
           build-args: |
-            TYPE=${{ env.BUILD_TYPE }}
+            TYPE=${{ matrix.type }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
